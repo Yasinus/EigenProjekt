@@ -1,5 +1,4 @@
 
-
 import numpy as np
 import cv2
 import random
@@ -8,6 +7,7 @@ import os
 import matplotlib.pyplot as plt
 import random as rand
 
+from depth_estimator import DepthEstimator
 
 
 
@@ -50,6 +50,7 @@ def grouping_strategy(pixel_indezes, sort_direction):
     if sort_direction == 'horizontal':
         pixel_indezes_array = np.array(sorted(pixel_indezes,key=lambda x: x[0]))
         pixel_indez_grouped = [list(map(tuple, group)) for group in np.split(pixel_indezes_array, np.unique(pixel_indezes_array[:, 0], return_index=True)[1])]
+    
     elif sort_direction == 'vertical':
         pixel_indezes_array = np.array(sorted(pixel_indezes,key=lambda x: x[1]))
         pixel_indez_grouped = [list(map(tuple, group)) for group in np.split(pixel_indezes_array, np.unique(pixel_indezes_array[:, 1], return_index=True)[1])]
@@ -62,7 +63,7 @@ def interval_groups_more(pixel_indezes):
     intervalrandom_range = (10, 200)
     pixel_indez_grouped = []
     neighborhood_range = 1
-    
+
     for pixel_index_row in pixel_indezes:
         i =0
         while i < len(pixel_index_row):
@@ -114,6 +115,14 @@ def main():
     # Read the image
     img = cv2.imread(os.path.join('pictures','input', 'light.png'))
     #img = cv2.resize(img, (500, 500))
+    
+    depth_estimator = DepthEstimator()
+    depth = depth_estimator.estimate_depth(img)
+    cv2.imshow('Image', depth)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 
     sort_type = 'value'
     img,reverse = mask_image(img, sort_type, threshold=(60, 245))
@@ -121,14 +130,17 @@ def main():
 
     cv2.imshow('Image', img)
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     #img = sort_pixels(img, sort_type=sort_type, sort_direction='horizontal')
     img = sort_pixels(img, sort_type=sort_type, sort_direction='vertical')
     second = sort_pixels(second, sort_type=sort_type, sort_direction='horizontal')
     img += reverse
     img += second
+    
     cv2.imshow('Image', img)
     cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
     #cv2.imwrite(os.path.join('pictures','output', 'light.png'), img)
 
