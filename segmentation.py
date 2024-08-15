@@ -5,9 +5,12 @@ import torch
 
  
 class Segmentation:
+
     def __init__(self):
         self.processor = AutoImageProcessor.from_pretrained("facebook/mask2former-swin-base-coco-panoptic")
         self.model = Mask2FormerForUniversalSegmentation.from_pretrained("facebook/mask2former-swin-base-coco-panoptic")
+
+
 
     def segment_image(self, image):
         image2 = Image.fromarray(image)

@@ -2,12 +2,13 @@ import numpy as np
 class Oklab:
 
     def __init__(self, bgr):
-
         self.rgb = bgr[:, :, ::-1]
         self.xyz = self.rgb2xyz()
         self.lms = self.xyz2lms()
         self.oklab = self.lms2oklab()
         self.lCh = self.oklab2lCh()
+
+
 
     def rgb2xyz(self):
         rgb = self.rgb / 255.0
@@ -18,12 +19,16 @@ class Oklab:
                                     [0.0883024619, 0.2817188376, 0.6299787005]]))
         return xyz
 
+
+
     def xyz2lms(self):
         lms = np.dot(self.xyz, np.array([[0.4002, 0.7076, -0.0808],
                                         [-0.2263, 1.1653, 0.0457],
                                         [0, 0, 0.9182]]))
         lms = np.where(lms <= 0, 1e-10, lms)
         return lms
+
+
 
     def lms2oklab(self):
         lms = self.lms
@@ -35,6 +40,8 @@ class Oklab:
                                     
         return oklab
 
+
+
     def oklab2lCh(self):
         oklab = self.oklab
         l = oklab[:,:,0]
@@ -44,8 +51,12 @@ class Oklab:
         h = np.arctan2(b, a)
         return (np.array([l, c, h]) * 255).astype(np.uint8)
 
+
+
     def get_oklab(self):
         return self.oklab
+    
+
     
     def get_lCh(self):
         return self.lCh

@@ -17,11 +17,12 @@ class FlowField:
 
         self.image = self.prepocess_image(image, invert)
         self.grad_x, self.grad_y = self.compute_gradient(self.image, weight)
-        self.magnitude = np.clip(np.hypot(self.grad_x, self.grad_y), 0, 1) # Clip values to 0-1
-        self.angle = self.discretize_angle(np.arctan2(self.grad_y, self.grad_x))    # Angle of gradient
+        self.magnitude = np.clip(np.hypot(self.grad_x, self.grad_y), 0, 1) 
+        self.angle = self.discretize_angle(np.arctan2(self.grad_y, self.grad_x))    
 
         self.create_flow_field(self.image)
         self.create_inverted_graph()
+
 
 
     def standardize(self, image):
@@ -122,15 +123,11 @@ class FlowField:
 
 
 
-
-
     def bfs_parallel_tree_with_filter(self,tree, root, allowed_nodes):
         visited = set()
         queue = deque([root])
         visited.add(root)
         output = []
-
-        # Convert allowed_nodes to a set for O(1) lookup
         allowed_set = set(allowed_nodes)
 
         def explore_node(node):
@@ -147,7 +144,7 @@ class FlowField:
                 
                 for _ in range(level_size):
                     node = queue.popleft()
-                    if node in allowed_set:  # Only consider nodes in the allowed_set
+                    if node in allowed_set:  
                         output.append(node)
                         futures.append(executor.submit(explore_node, node))
                 
@@ -190,6 +187,7 @@ class FlowField:
         return index_combinations
 
     
+
 def main():
     pictures_name = 'tunnel_depth.png'
     image = cv2.imread(os.path.join('pictures','input', pictures_name))

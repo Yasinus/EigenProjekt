@@ -128,6 +128,7 @@ class PixelSorter:
         return pixel_indez_grouped
 
 
+
     def get_gradient_matrix(self,img):
         sobel_x = sobel(img, axis=0)
         sobel_y = sobel(img, axis=1)
@@ -166,7 +167,6 @@ def show_image(img):
 def main():
 
     pictures_name = 'statue.png'
-    sort_type = 'value'
     use_depth = True
     use_segmentation = False
 
@@ -186,7 +186,7 @@ def main():
     if use_segmentation:
         segmentator = Segmentation()
         panoptic_segmentation = segmentator.segment_image(image)
-        #show_image(panoptic_segmentation * 255)
+        #show_image(panoptic_segmentation / np.max(panoptic_segmentation) * 255)
         applied_masks = pixelSorter.panoptic_to_applied_masks(image,panoptic_segmentation)
 
     else:
@@ -195,7 +195,6 @@ def main():
 
     cummulativ_image = np.zeros_like(image)
     for applied_seg_image in applied_masks:
-        # masked_image,reverse = pixelSorter.mask_image(applied_seg_image, 'value', threshold=(100,195))
         masked_image,reverse = pixelSorter.mask_image(applied_seg_image, 'saturation', threshold=(175,255))
         masked_image,second_reverse = pixelSorter.mask_image(pixelSorter.apply_mask(image, masked_image), 'value', threshold=(105,195))
  
@@ -216,8 +215,6 @@ def main():
                                                 use_interval_groups = True,
                                                 intervalrandom_range = (image.shape[1],image.shape[1]))
         
-        
-
         output_image = sorted_image + pixelSorter.apply_mask(image, np.clip(reverse + second_reverse,0,1)) 
         cummulativ_image += output_image
         show_image(output_image)
