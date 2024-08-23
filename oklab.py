@@ -60,3 +60,54 @@ class Oklab:
     
     def get_lCh(self):
         return self.lCh
+    
+class reverse_Oklab:
+    def __init__(self, lCh):
+        self.lCh = lCh
+        self.oklab = self.lCh2oklab()
+        self.lms = self.oklab2lms()
+        self.xyz = self.lms2xyz()
+        self.rgb = self.xyz2rgb()
+        self.bgr = self.rgb[:, :, ::-1]
+    
+    def lCh2oklab(self):
+        l = self.lCh[0] / 255.0
+        c = self.lCh[1] / 255.0
+        h = self.lCh[2] / 255.0
+        a = c * np.cos(h)
+        b = c * np.sin(h)
+        oklab = np.dstack((l, a, b))
+        return oklab
+    
+    def oklab2lms(self):
+        oklab = self.oklab
+        l = oklab[:,:,0]
+        a = oklab[:,:,1]
+        b = oklab[:,:,2]
+        lms = np.dot(oklab, np.array([[0.2104542553, 0.7936177850, -0.0040720468],
+                                    [1.9779984951, -2.4285922050, 0.4505937099],
+                                    [0.0259040371, 0.7827717662, -0.8086757660]]))
+        lms = 10 ** lms
+        return
+    
+    def lms2xyz(self):
+        lms = self.lms
+        l = lms[:,:,0]
+        m = lms[:,:,1]
+        s = lms[:,:,2]
+        xyz = np.dot(lms, np.array([[1.862067855087233, -1.011254630531512, 0.149186575585921],
+                                    [0.387526968021060, 0.621447441818524, -0.008973985785558],
+                                    [-0.015841813798413, -0.034610936001449, 1.049404351494094]]))
+        return xyz
+    
+    def xyz2rgb(self):
+        xyz = self.xyz / 100.0
+        r = np.dot(xyz, np.array([[3.2404542, -1.5371385, -0.4985314],
+                                    [-0.9692660, 1.8760108, 0.0415560],
+                                    [0.0556434, -0.2040259, 1.0572252]]))
+        r = np.where(r > 0.0031308, 1.055 * (r ** (1 / 2.4)) - 0.055, 12.92 * r)
+        r = np.clip(r, 0, 1)
+        return r * 255.0
+    
+    def get_bgr(self):
+        return self.bgr

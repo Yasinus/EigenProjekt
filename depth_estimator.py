@@ -2,7 +2,6 @@ from transformers import GLPNImageProcessor, GLPNForDepthEstimation
 import torch
 import numpy as np
 from PIL import Image
-import requests
 
 
 class DepthEstimator:

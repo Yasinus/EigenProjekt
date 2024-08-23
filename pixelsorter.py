@@ -2,45 +2,17 @@
 import numpy as np
 import cv2
 import random
-import sys
 import os
-import matplotlib.pyplot as plt
-import random as rand
 
 from depth_estimator import DepthEstimator
 from segmentation import Segmentation
-from oklab import Oklab
 from vectorfield import FlowField
 from scipy.ndimage import sobel
+from ColorSpace import ColorSpace
 
 class PixelSorter:
-    def __init__(self):
-        self.flow_field = None
-
-
-    def get_sort_func(self,sort_type):
-        
-        match sort_type:
-            case 'red':
-                func = lambda x: x[:,:,2]
-            case 'green':
-                func = lambda x: x[:,:,1]
-            case 'blue':
-                func = lambda x: x[:,:,0]
-            case 'hue':
-                func = lambda x: cv2.cvtColor(x,cv2.COLOR_BGR2HSV)[:,:,0]
-            case 'saturation':
-                func = lambda x: cv2.cvtColor(x,cv2.COLOR_BGR2HSV)[:,:,1]
-            case 'value':
-                func = lambda x: cv2.cvtColor(x,cv2.COLOR_BGR2HSV)[:,:,2]
-            case 'okl':
-                func = lambda x: Oklab(x).get_lCh()[0]
-            case 'okc':
-                func = lambda x: Oklab(x).get_lCh()[1]
-            case 'okh':
-                func = lambda x: Oklab(x).get_lCh()[2]
-
-        return func
+    def __init__(self, flow_field = None):
+        self.flow_field = flow_field #used for optimized gradient sorting
 
 
 
@@ -50,7 +22,7 @@ class PixelSorter:
 
 
     def mask_image(self,img, sort_type, threshold=(0,100)):
-        channel_image = self.get_sort_func(sort_type)(img) 
+        channel_image = ColorSpace.get_sort_func(sort_type)(img) 
         mask = (channel_image >= threshold[0]) & (channel_image <= threshold[1])
         reverse_mask = ~mask
         return mask.astype(np.uint8), reverse_mask.astype(np.uint8)
@@ -95,6 +67,7 @@ class PixelSorter:
         elif sort_direction == 'vertical':
             pixel_indezes_array = np.array(sorted(pixel_indezes,key=lambda x: x[1]))
             pixel_indez_grouped = [list(map(tuple, group)) for group in np.split(pixel_indezes_array, np.unique(pixel_indezes_array[:, 1], return_index=True)[1])]
+        
         elif sort_direction == 'gradient':
             pixel_indez_grouped = self.flow_field.region_2_sorted_lists(pixel_indezes)
 
@@ -143,7 +116,7 @@ class PixelSorter:
         pixel_index = self.get_nonzero_indices(mask)
         pixel_indez_grouped = self.grouping_strategy(pixel_index, sort_direction)
         output = self.apply_mask(image, mask)
-        channel_image = self.get_sort_func(sort_type)(output) 
+        channel_image = ColorSpace.get_sort_func(sort_type)(output) 
         if use_interval_groups:
             pixel_indez_grouped = self.interval_groups_more(pixel_indez_grouped, intervalrandom_range)
 

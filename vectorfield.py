@@ -76,26 +76,32 @@ class FlowField:
 
 
 
-    def find_neighbor(self, x, y, angle):
+    def angle_to_direction(self, angle):
         match angle:
             case 0:
-                return x+1, y
+                return 1, 0
             case 45:
-                return x+1, y-1
+                return 1, -1
             case 90:
-                return x, y-1
+                return 0, -1
             case 135:
-                return x-1, y-1
+                return -1, -1
             case 180:
-                return x-1, y
+                return -1, 0
             case 225:
-                return x-1, y+1
+                return -1, 1
             case 270:
-                return x, y+1
+                return 0, 1
             case 315:
-                return x+1, y+1
+                return 1, 1
             case _:
                 raise ValueError(f'Invalid angle: {angle}')
+
+
+
+    def find_neighbor(self, x, y, angle):
+        dx, dy = self.angle_to_direction(angle)
+        return x + dx, y + dy
 
 
 
