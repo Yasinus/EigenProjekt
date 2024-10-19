@@ -1,16 +1,22 @@
 import numpy as np
-class Oklab:
 
+
+class Oklab:
+    """
+    This class is used to convert an image from the BGR color space to the Oklab color space
+    The Oklab color space is a perceptual color space that is designed to be more perceptually uniform than the RGB color space
+    """
+    
     def __init__(self, bgr):
         self.rgb = bgr[:, :, ::-1]
-        self.xyz = self.rgb2xyz()
-        self.lms = self.xyz2lms()
-        self.oklab = self.lms2oklab()
-        self.lCh = self.oklab2lCh()
+        self.xyz = self.rgb_2_xyz()
+        self.lms = self.xyz_2_lms()
+        self.oklab = self.lms_2_oklab()
+        self.lCh = self.oklab_2_lCh()
 
 
 
-    def rgb2xyz(self):
+    def rgb_2_xyz(self):
         rgb = self.rgb / 255.0
         rgb = np.where(rgb > 0.04045, ((rgb + 0.055) / 1.055) ** 2.4, rgb / 12.92)
         rgb = rgb * 100.0
@@ -21,7 +27,7 @@ class Oklab:
 
 
 
-    def xyz2lms(self):
+    def xyz_2_lms(self):
         lms = np.dot(self.xyz, np.array([[0.4002, 0.7076, -0.0808],
                                         [-0.2263, 1.1653, 0.0457],
                                         [0, 0, 0.9182]]))
@@ -30,7 +36,7 @@ class Oklab:
 
 
 
-    def lms2oklab(self):
+    def lms_2_oklab(self):
         lms = self.lms
         lms = np.where(lms <= 0, 1e-10, lms)
         lms = np.log10(lms)
@@ -42,7 +48,7 @@ class Oklab:
 
 
 
-    def oklab2lCh(self):
+    def oklab_2_lCh(self):
         oklab = self.oklab
         l = oklab[:,:,0]
         a = oklab[:,:,1]
@@ -61,7 +67,7 @@ class Oklab:
     def get_lCh(self):
         return self.lCh
     
-class reverse_Oklab:
+class reverse_Oklab: #TODO: abondont idea. Kept for future endeavors
     def __init__(self, lCh):
         self.lCh = lCh
         self.oklab = self.lCh2oklab()

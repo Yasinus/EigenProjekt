@@ -4,86 +4,101 @@ import cv2
 import random
 import os
 
-from depth_estimator import DepthEstimator
-from segmentation import Segmentation
-from vectorfield import FlowField
-from scipy.ndimage import sobel
-from ColorSpace import ColorSpace
+
+from colorspace import ColorSpace
+from mask import Mask
+from flowfield import FlowField
+
+
 
 class PixelSorter:
-    def __init__(self, flow_field = None):
-        self.flow_field = flow_field #used for optimized gradient sorting
+    """
+    PixelSorter class is used to sort the pixels of an image 
+    The most important method is sort_pixels which sorts the pixels of an image based on a mask and a sort type.
+    It needs a mask to define the all the pixels of the pixels that should be sorted.
+    We are able to sort the pixels in a horizontal, vertical or from the flow field direction.
+    This is basically how the array of pixels, which should be sorted, is created.
+    The flowfield has to be precomputed for the entire image and it is not done in this class.
 
+    The pixels can be sorted in ascending or descending order. 
+    The value of the pixels is determined by the sort type, which is either a color channel or the depth of the pixel.
+    See ColorSpace class for more information about the sort types.
 
+    We can also split the pixels into even smaller groups and sort them individually. 
+    This can increase the randomness of the sorting and also increase the performance.
 
-    def apply_mask(self,img, mask):
-        return (mask[..., np.newaxis] * img).astype(np.uint8)
-
-
-
-    def mask_image(self,img, sort_type, threshold=(0,100)):
-        channel_image = ColorSpace.get_sort_func(sort_type)(img) 
-        mask = (channel_image >= threshold[0]) & (channel_image <= threshold[1])
-        reverse_mask = ~mask
-        return mask.astype(np.uint8), reverse_mask.astype(np.uint8)
-
-
-
-    def panoptic_to_applied_masks(self,img,panoptic_segmentation):
-        unique_segments = np.unique(panoptic_segmentation)
-        applied_masks = []
-        for segment_id in unique_segments:
-            binary_mask = (panoptic_segmentation == segment_id).astype(np.uint8)
-            applied_masks.append(self.apply_mask(img, binary_mask))
-
-        return applied_masks
-
-
-
-    def apply_mask_imgs(self,imgs, mask):
-        applied_masks = []
-        for img in imgs:
-            applied_masks.append(self.apply_mask(img, mask))
-        return applied_masks
-
+    """
+    
+    def __init__(self): 
+        pass
 
 
     def get_nonzero_indices(self,matrix):
+        """
+        This method returns the indices of the nonzero elements of a matrix
+        Args:
+            matrix (np.array): the matrix we want to get the indices from
+        
+        Returns:
+            list: a list of tuples containing the indices of the nonzero elements
+        """
+
         nonzero_indices = np.nonzero(matrix)
         index_combinations = list(zip(*nonzero_indices))
         return index_combinations
 
 
 
-    def grouping_strategy(self,pixel_indezes, sort_direction):
+    def grouping_strategy(self,pixel_indices, sort_direction, flow_field = None):
+        """
+        This method groups the pixel indices based on the sort direction
+        Args:
+            pixel_indices (list): a list of tuples containing the pixel indices
+            sort_direction (str): the direction we want to sort the pixels in
+            flow_field (FlowField): the flow field of the entire image: used for only flowfield sorting
+        Returns:
+            list: a list of lists containing the grouped pixel indices
+        """
 
-        pixel_indez_grouped = []
-        if pixel_indezes == []:
-            return pixel_indez_grouped
-        if sort_direction == 'horizontal':
-            pixel_indezes_array = np.array(sorted(pixel_indezes,key=lambda x: x[0]))
-            pixel_indez_grouped = [list(map(tuple, group)) for group in np.split(pixel_indezes_array, np.unique(pixel_indezes_array[:, 0], return_index=True)[1])]
+        pixel_indices_grouped = []
+        if pixel_indices == []:
+            return pixel_indices_grouped
         
-        elif sort_direction == 'vertical':
-            pixel_indezes_array = np.array(sorted(pixel_indezes,key=lambda x: x[1]))
-            pixel_indez_grouped = [list(map(tuple, group)) for group in np.split(pixel_indezes_array, np.unique(pixel_indezes_array[:, 1], return_index=True)[1])]
+        match sort_direction:
+            case 'horizontal':
+                pixel_indices_array = np.array(sorted(pixel_indices,key=lambda x: x[0]))
+                pixel_indices_grouped = [list(map(tuple, group)) for group in np.split(pixel_indices_array, np.unique(pixel_indices_array[:, 0], return_index=True)[1])]
+
+            case 'vertical':
+                pixel_indices_array = np.array(sorted(pixel_indices,key=lambda x: x[1]))
+                pixel_indices_grouped = [list(map(tuple, group)) for group in np.split(pixel_indices_array, np.unique(pixel_indices_array[:, 1], return_index=True)[1])]
         
-        elif sort_direction == 'gradient':
-            pixel_indez_grouped = self.flow_field.region_2_sorted_lists(pixel_indezes)
+            case 'flowfield':
+                if flow_field is None:
+                    raise ValueError('Flow field of the entire image is not set') #we need the precomputed flow field for high performance
+                pixel_indices_grouped = flow_field.region_2_sorted_lists(pixel_indices)
 
-        return pixel_indez_grouped 
+        return pixel_indices_grouped 
 
 
 
-    def interval_groups_more(self,pixel_indezes, intervalrandom_range): #TODO: take standard deviation into account for interval length	
-        intervalrandom_range = (500,500)
-        pixel_indez_grouped = []
+    def split_interval_groups_more(self,pixel_indices, interval_random_range): #TODO: take standard deviation into account for interval length	
+        """	
+        This method splits the pixel indices into smaller groups
+        Args:
+            pixel_indices (list): a list of lists containing the pixel indices
+            interval_random_range (tuple): the range of the random interval length
+        Returns:
+            list: a list of lists containing the grouped pixel indices
+        """
+        
+        pixel_indices_grouped = []
         neighborhood_range = 2
 
-        for pixel_index_row in pixel_indezes:
+        for pixel_index_row in pixel_indices:
             i =0
             while i < len(pixel_index_row):
-                random_length = min(random.randint(*intervalrandom_range), len(pixel_index_row) - i)
+                random_length = min(random.randint(*interval_random_range), len(pixel_index_row) - i)
                 neighborhood_group =[]
                 for j in range(i, i+random_length):
                     if neighborhood_group != []:
@@ -97,104 +112,42 @@ class PixelSorter:
                     neighborhood_group.append(pixel_index_row[j])
                     i += 1
 
-                pixel_indez_grouped.append(neighborhood_group)
-        return pixel_indez_grouped
+                pixel_indices_grouped.append(neighborhood_group)
+        return pixel_indices_grouped
 
 
 
-    def get_gradient_matrix(self,img):
-        sobel_x = sobel(img, axis=0)
-        sobel_y = sobel(img, axis=1)
-        gradient_magnitude = np.hypot(sobel_x, sobel_y)
-        gradient_angle = np.arctan2(sobel_y, sobel_x)
+    def sort_pixels(self,image,mask, sort_type, sort_direction, sort_ascend = True,split_interval_groups = True, interval_random_range = (500,500),flow_field = None):
+        """
+        This method sorts the pixels of an image based on a mask and a sort type
 
-        return gradient_magnitude, gradient_angle
+        Args:
+            image (np.array): the image we want to sort
+            mask (np.array): the mask that defines the pixels we want to sort
+            sort_type (str): the type of the sort we want to use
+            sort_direction (str): the direction we want to sort the pixels in
+            sort_ascend (bool): if the pixels should be sorted in ascending order
+            split_interval_groups (bool): if the pixels should be split into smaller groups
+            interval_random_range (tuple): the range of the random interval length
+            flow_field (FlowField): the flow field of the entire image: used for only flowfield sorting
+        
+        Returns:
+            np.array: the sorted image
+        """
+        
+        pixel_indices = self.get_nonzero_indices(mask) #get the pixel indezes of the mask
+        pixel_indices_grouped = self.grouping_strategy(pixel_indices, sort_direction, flow_field) #group the pixel indezes based on the sort direction 
+        output_image = Mask().apply_mask(image, mask)
+        channel_image = ColorSpace.get_sort_func(sort_type)(output_image) #the channel we want to sort by
 
+        if split_interval_groups:
+            pixel_indices_grouped = self.split_interval_groups_more(pixel_indices_grouped, interval_random_range)
 
-
-    def sort_pixels(self,image,mask, sort_type, sort_direction, sort_ascend = True,use_interval_groups = True, intervalrandom_range = (500,500)):
-        pixel_index = self.get_nonzero_indices(mask)
-        pixel_indez_grouped = self.grouping_strategy(pixel_index, sort_direction)
-        output = self.apply_mask(image, mask)
-        channel_image = ColorSpace.get_sort_func(sort_type)(output) 
-        if use_interval_groups:
-            pixel_indez_grouped = self.interval_groups_more(pixel_indez_grouped, intervalrandom_range)
-
-        for group in pixel_indez_grouped:
+        for group in pixel_indices_grouped:
             group_sorted = sorted(group, key= lambda x: channel_image[x] , reverse=sort_ascend)
             for i, index in enumerate(group):
-                output[index] = image[group_sorted[i]]
+                output_image[index] = image[group_sorted[i]]
 
-        return output
-
-
-
-def show_image(img):
-    cv2.imshow('Image', img)
-    cv2.resizeWindow('Image', 600,600)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        return output_image
 
 
-
-def main():
-
-    pictures_name = 'statue.png'
-    use_depth = True
-    use_segmentation = False
-
-    image = cv2.imread(os.path.join('pictures','input', pictures_name))
-    image = cv2.resize(image, (image.shape[1]//2, image.shape[0]//2))
-    show_image(image)
-
-    pixelSorter = PixelSorter()
-
-    if use_depth:
-        depth_estimator = DepthEstimator()
-        image_depth = depth_estimator.estimate_depth(image)
-        pixelSorter.flow_field = FlowField(image_depth, experiment = True)
-
-        show_image(image_depth)
-
-    if use_segmentation:
-        segmentator = Segmentation()
-        panoptic_segmentation = segmentator.segment_image(image)
-        #show_image(panoptic_segmentation / np.max(panoptic_segmentation) * 255)
-        applied_masks = pixelSorter.panoptic_to_applied_masks(image,panoptic_segmentation)
-
-    else:
-        applied_masks = [image]
-
-
-    cummulativ_image = np.zeros_like(image)
-    for applied_seg_image in applied_masks:
-        masked_image,reverse = pixelSorter.mask_image(applied_seg_image, 'saturation', threshold=(175,255))
-        masked_image,second_reverse = pixelSorter.mask_image(pixelSorter.apply_mask(image, masked_image), 'value', threshold=(105,195))
- 
-        show_image(pixelSorter.apply_mask(image, masked_image))    
-
-        sorted_image = pixelSorter.sort_pixels(image,
-                                                mask=masked_image, 
-                                                sort_type='hue', 
-                                                sort_direction='vertical', 
-                                                sort_ascend=True,
-                                                use_interval_groups = True,
-                                                intervalrandom_range = (image.shape[0],image.shape[0]))
-        sorted_image = pixelSorter.sort_pixels(sorted_image,
-                                                mask=masked_image, 
-                                                sort_type='value', 
-                                                sort_direction='gradient', 
-                                                sort_ascend=True,
-                                                use_interval_groups = True,
-                                                intervalrandom_range = (image.shape[1],image.shape[1]))
-        
-        output_image = sorted_image + pixelSorter.apply_mask(image, np.clip(reverse + second_reverse,0,1)) 
-        cummulativ_image += output_image
-        show_image(output_image)
-
-    show_image(cummulativ_image)
-
-    #cv2.imwrite(os.path.join('pictures','output', pictures_name), img)
-
-if __name__ == '__main__':
-    main()

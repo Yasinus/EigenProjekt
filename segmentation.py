@@ -3,6 +3,9 @@ from PIL import Image
 import requests
 import torch	
 
+# This class is used to segment an image using the Mask2FormerForUniversalSegmentation model
+# The model is pretrained on the COCO dataset
+# The segment_image method takes an image as input and returns the segmented image
  
 class Segmentation:
 

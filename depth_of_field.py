@@ -5,17 +5,14 @@ import matplotlib.pyplot as plt
 import os
 
 
-from vectorfield import FlowField
-from ColorSpace import ColorSpace
+from flowfield import FlowField
+from colorspace import ColorSpace
 
- 
+# This is just an experiment to see how the depth of field effect can be applied to an image
+# also it simulates the effect of Chromatic aberration in a lens that is able to shift the colors in the image with different colorspaces
+# it ultimately did not look as cool as I thought it would be
 
-# Load the image and depth map
-image = cv2.imread(os.path.join('pictures','input', 'tunnel.png'))
-depth_map = cv2.imread(os.path.join('pictures','input', 'tunnel_depth.png'), cv2.IMREAD_GRAYSCALE)
-
-
-class DOV:
+class DepthOfField:
     def __init__(self, image, depth_map, focus_distance, aperture_size, use_gradient= False):
         self.image = image
         self.depth_map = depth_map
@@ -54,9 +51,13 @@ class DOV:
             output_image = cv2.add(output_image, effect_image * mask[:, :, np.newaxis])
         output_image = np.clip(output_image, 0, 255).astype(np.uint8)
         return output_image
+
+# Load the image and depth map
+image = cv2.imread(os.path.join('pictures','input', 'tunnel.png'))
+depth_map = cv2.imread(os.path.join('pictures','input', 'tunnel_depth.png'), cv2.IMREAD_GRAYSCALE)
     
-dov = DOV(image, depth_map, 0.5, 10, use_gradient=True)
-output_image = dov.apply(effect='gaussian', color_space='lab')
+dof = DepthOfField(image, depth_map, 0.5, 10, use_gradient=True) 
+output_image = dof.apply(effect='space_shift', color_space='lab')
 
 cv2.imshow('Output Image', output_image)
 cv2.waitKey(0)
